@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -e
+(! type -p bash >/dev/null) && echo "Bash not found on the system" >&2 && exit 1
+(! type -p jq >/dev/null) && echo "JQ not found on the system" >&2 && exit 1
+help_flags="\
+    FLAGS
+      help\tshow help for “current level” (projects, columns, cards list, …)
+      web\topens milestone(s) in web browser
+"
+cmd=${1:---help}
+shift
+if [[ "--help" = "$cmd" ]] || [[ "$*" =~ "--help" ]]; then
+    echo -e "
+    Work with GitHub Milestones
+
+    USAGE
+      gh milestone [list|view|create] [number] --[FLAGS]
+        - list: prints milestones
+        - view number: prints issues for given milestone (also see '--web')
+        - create: interactive create milestone
+
+    EXAMPLES
+"
+    echo -e "$help_flags"
+    exit 0
+fi
+
+list_milestones=`gh api "/repos/{owner}/{repo}/milestones" -q "[ .[] | { id, number, title, description, open_issues, closed_issues, html_url, due_on } ]"`
+if [[ "list" = "$cmd" ]]; then
+    echo -e "NUM\tNAME\tDUE ON\t\tPROGRESS\tDESCRIPTION"
+    echo "$list_milestones" | jq -cr '.[] | [ .number, .title, (.due_on | fromdate | strftime("%Y-%m-%d")), ( (.closed_issues | tostring) + "/" + (.open_issues | tostring) ), ( "\t" + ( if .description!="" then .description else "–" end) ) ] | join("\t")'
+    exit 0
+fi
+
+testNumber(){
+    [ $2 -eq $2 ] &>/dev/null && return 0
+    echo "For choosing $1 use number, not '$2'"
+    echo "For help use '--help'"
+    exit 1
+}
+
+edit(){
+    echo "$1"
+    read -p "title: " title
+    read -p "description: " description
+    read -p "due on (Y-m-d): " due_on
+    gh api "/repos/{owner}/{repo}/milestones$2" -F "title=$title" -F "description=$description" -F "due_on=${due_on}T08:00:00Z"
+}
+if [[ "create" = "$cmd" ]]; then
+    edit "Create milestone" ""
+    exit 0
+fi
+
+testNumber "milestone" $1
+milestone=`echo "$list_milestones" | jq -r ". | map(select(.number == $1)) | .[0]"`
+
+if [[ " $cmd" != "view" ]];then
+    echo "Unknown argument '$cmd'. Use '--help' for help."
+    exit 1
+fi
+if [[ "$*" =~ "--web" ]]; then
+    exo-open --launch WebBrowser "`echo "$milestone" | jq -r ".html_url"`?fullscreen=true"
+    exit 0
+fi
+gh issue list --search "milestone:`echo $milestone | jq -r '.title'`"
