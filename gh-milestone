@@ -2,64 +2,56 @@
 set -e
 (! type -p bash >/dev/null) && echo "Bash not found on the system" >&2 && exit 1
 (! type -p jq >/dev/null) && echo "JQ not found on the system" >&2 && exit 1
-help_flags="\
-    FLAGS
-      help\tshow help for “current level” (projects, columns, cards list, …)
-      web\topens milestone(s) in web browser
-"
+this_dir="`dirname "$0"`/"
 cmd=${1:---help}
+[[ "--help" = "$cmd" ]] || [[ "$*" =~ "--help" ]] && source $this_dir"help/main.sh"
 shift
-if [[ "--help" = "$cmd" ]] || [[ "$*" =~ "--help" ]]; then
-    echo -e "
-    Work with GitHub Milestones
 
-    USAGE
-      gh milestone [list|view|create] [number] --[FLAGS]
-        - list: prints milestones
-        - view number: prints issues for given milestone (also see '--web')
-        - create: interactive create milestone
-
-    EXAMPLES
-"
-    echo -e "$help_flags"
-    exit 0
-fi
-
-list_milestones=`gh api "/repos/{owner}/{repo}/milestones" -q "[ .[] | { id, number, title, description, open_issues, closed_issues, html_url, due_on } ]"`
+list_milestones=`gh api "/repos/{owner}/{repo}/milestones" -q "
+    [ .[] | { id, number, title, description, open_issues, closed_issues, html_url, due_on } ]"`
+query_due_on='(.due_on | fromdate | strftime("%Y-%m-%d"))'
 if [[ "list" = "$cmd" ]]; then
+    query_progress='( (.closed_issues | tostring) + "/" + (.open_issues | tostring) )'
+    query_description='( "\t" + ( if .description!="" then .description else "–" end) )'
     echo -e "NUM\tNAME\tDUE ON\t\tPROGRESS\tDESCRIPTION"
-    echo "$list_milestones" | jq -cr '.[] | [ .number, .title, (.due_on | fromdate | strftime("%Y-%m-%d")), ( (.closed_issues | tostring) + "/" + (.open_issues | tostring) ), ( "\t" + ( if .description!="" then .description else "–" end) ) ] | join("\t")'
+    echo "$list_milestones" | jq -cr ".[] | [ .number, .title, $query_due_on, $query_progress, $query_description ]"' | join("\t")'
     exit 0
 fi
 
-testNumber(){
-    [ $2 -eq $2 ] &>/dev/null && return 0
-    echo "For choosing $1 use number, not '$2'"
-    echo "For help use '--help'"
-    exit 1
-}
-
+jqChoose(){ echo "$1" | jq -r "$2"; }
+source $this_dir"utils/testNumber.sh"
 edit(){
     echo "$1"
-    read -p "title: " title
-    read -p "description: " description
-    read -p "due on (Y-m-d): " due_on
-    gh api "/repos/{owner}/{repo}/milestones$2" -F "title=$title" -F "description=$description" -F "due_on=${due_on}T08:00:00Z"
+    if [[ $2 != "" ]]; then
+        d_title=`jqChoose "$2" '.title'`
+        d_description=`jqChoose "$2" '.description'`
+        d_due_on=`jqChoose "$2" "$query_due_on"`
+        d_q="/`jqChoose "$2" '.number'`"
+    fi
+    read -e -p "title: " -i "$d_title" title
+    read -e -p "description: " -i "$d_description" description
+    read -e -p "due on (Y-m-d): " -i "$d_due_on" due_on
+    gh api "/repos/{owner}/{repo}/milestones$d_q" -F "title=$title" -F "description=$description" -F "due_on=${due_on}T08:00:00Z"
 }
+
 if [[ "create" = "$cmd" ]]; then
     edit "Create milestone" ""
     exit 0
 fi
 
 testNumber "milestone" $1
-milestone=`echo "$list_milestones" | jq -r ". | map(select(.number == $1)) | .[0]"`
+milestone=`jqChoose "$list_milestones" ". | map(select(.number == $1)) | .[0]"`
 
-if [[ " $cmd" != "view" ]];then
+if [[ "edit" = "$cmd" ]]; then
+    edit "Edit milestone" "$milestone"
+    exit 0
+fi
+if [[ "view" != "$cmd" ]];then
     echo "Unknown argument '$cmd'. Use '--help' for help."
     exit 1
 fi
 if [[ "$*" =~ "--web" ]]; then
-    exo-open --launch WebBrowser "`echo "$milestone" | jq -r ".html_url"`?fullscreen=true"
-    exit 0
+    exo-open --launch WebBrowser "`jqChoose "$milestone" '.html_url'`?fullscreen=true" 2> /dev/null
+    exit "$?"
 fi
-gh issue list --search "milestone:`echo $milestone | jq -r '.title'`"
+gh issue list --search "milestone:`jqChoose "$milestone" '.title'`"
