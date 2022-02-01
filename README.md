@@ -1,5 +1,5 @@
 # gh-milestone
-GitHub cli extension to see projects and moving cards
+GitHub cli extension to see/edit/create milestones.
 
 ℹ️ contributions welcome
 
@@ -17,17 +17,26 @@ gh extension install jaandrle/gh-milestone
 ## Synopsis
 - basic
   ```text
-        Work with GitHub Milestones
+    Work with GitHub Milestones
 
-        USAGE
-          gh milestone [list|view|create] [number] --[FLAGS]
-            - list: prints milestones
-            - view number: prints issues for given milestone (also see '--web')
-            - create: interactive create milestone
+    USAGE
+        gh milestone [list|view|create|edit] [number] --[FLAGS]
+        - 'list': prints milestones
+        - 'view number': prints issues for given milestone (also see '--web')
+        - 'create' &
+          'edit number': interactive create/edit milestone (title, description, due on)
 
-        EXAMPLES
+    EXAMPLES
+        gh milestone list
+        gh milestone create
+        gh milestone view 50
+        gh milestone view 50 --web
+        gh milestone edit 50
 
-        FLAGS
-          help      show help for “current level” (projects, columns, cards list, …)
-          web       opens milestone(s) in web browser
+    FLAGS
+      help      show help for “current level” (projects, columns, cards list, …)
+      web       opens milestone(s) in web browser
+
+    VERSION
+      2022-02-01
   ```
