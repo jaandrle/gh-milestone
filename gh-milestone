@@ -32,26 +32,17 @@ edit(){
     read -e -p "description: " -i "$d_description" description
     read -e -p "due on (Y-m-d): " -i "$d_due_on" due_on
     gh api "/repos/{owner}/{repo}/milestones$d_q" -F "title=$title" -F "description=$description" -F "due_on=${due_on}T08:00:00Z"
+    exit "$?"
 }
 
-if [[ "create" = "$cmd" ]]; then
-    edit "Create milestone" ""
-    exit 0
-fi
+[[ "create" = "$cmd" ]] && edit "Create milestone" ""
 
 testNumber "milestone" $1
 milestone=`jqChoose "$list_milestones" ". | map(select(.number == $1)) | .[0]"`
 
-if [[ "edit" = "$cmd" ]]; then
-    edit "Edit milestone" "$milestone"
-    exit 0
-fi
-if [[ "view" != "$cmd" ]];then
-    echo "Unknown argument '$cmd'. Use '--help' for help."
-    exit 1
-fi
-if [[ "$*" =~ "--web" ]]; then
-    exo-open --launch WebBrowser "`jqChoose "$milestone" '.html_url'`?fullscreen=true" 2> /dev/null
-    exit "$?"
-fi
+[[ "edit" = "$cmd" ]] && edit "Edit milestone" "$milestone"
+[[ "view" != "$cmd" ]] &&  echo "Unknown argument '$cmd'. Use '--help' for help." &&  exit 1
+[[ "$*" =~ "--web" ]] \
+    && exo-open --launch WebBrowser "`jqChoose "$milestone" '.html_url'`?fullscreen=true" 2> /dev/null \
+    && exit "$?"
 gh issue list --search "milestone:`jqChoose "$milestone" '.title'`"
