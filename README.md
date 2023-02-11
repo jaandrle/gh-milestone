@@ -7,7 +7,9 @@ A [GitHub CLI](https://cli.github.com/) extension to work with projects.
 
 ## Installation
 
-Make sure you have at least version 2 of the GitHub CLI installed. Internaly use [jq](https://stedolan.github.io/jq/).
+1. check requirements first:
+	- tested on [gh version 2.23.0 (2023-02-08)](https://github.com/cli/cli/releases/tag/v2.23.0)
+	- internaly use [jq](https://stedolan.github.io/jq/).
 
 Install this extension with:
 ```bash
