@@ -3,7 +3,7 @@ set -e
 (! type -p bash >/dev/null) && echo "Bash not found on the system" >&2 && exit 1
 (! type -p jq >/dev/null) && echo "JQ not found on the system" >&2 && exit 1
 this_dir="`dirname "$0"`/"
-this_version="2022-02-01"
+this_version="2023-02-11"
 cmd=${1:---help}
 [[ "--help" = "$cmd" ]] || [[ "$*" =~ "--help" ]] && source $this_dir"help/main.sh"
 shift
@@ -41,9 +41,12 @@ edit(){
 testNumber "milestone" $1
 milestone=`jqChoose "$list_milestones" ". | map(select(.number == $1)) | .[0]"`
 
+echo "`jqChoose "$milestone" '.title'`"
 [[ "edit" = "$cmd" ]] && edit "Edit milestone" "$milestone"
 [[ "view" != "$cmd" ]] &&  echo "Unknown argument '$cmd'. Use '--help' for help." &&  exit 1
 [[ "$*" =~ "--web" ]] \
     && exo-open --launch WebBrowser "`jqChoose "$milestone" '.html_url'`?fullscreen=true" 2> /dev/null \
     && exit "$?"
 gh issue list --milestone $1
+
+echo "\nUse `gh issue list view #` to view an issue info."
