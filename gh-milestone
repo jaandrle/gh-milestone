@@ -10,12 +10,11 @@ shift
 
 list_milestones=`gh api "/repos/{owner}/{repo}/milestones" -q "
     [ .[] | { id, number, title, description, open_issues, closed_issues, html_url, due_on } ]"`
-query_due_on='(.due_on | fromdate | strftime("%Y-%m-%d"))'
+query_due_on='( if .due_on == null then "no" else (.due_on | fromdate | strftime("%Y-%m-%d")) end )'
 if [[ "list" = "$cmd" ]]; then
-    query_progress='( (.closed_issues | tostring) + "/" + (.open_issues | tostring) )'
-    query_description='( "\t" + ( if .description!="" then .description else "–" end) )'
-    echo -e "NUM\tNAME\tDUE ON\t\tPROGRESS\tDESCRIPTION"
-    echo "$list_milestones" | jq -cr ".[] | [ .number, .title, $query_due_on, $query_progress, $query_description ]"' | join("\t")'
+    query_progress='( (.closed_issues | tostring) + "/" + (.open_issues + .closed_issues | tostring) )'
+    query_description='( if .description!="" then .description else "–" end)'
+	echo "$list_milestones" | jq -c ".[] | { number, title, \"due_on\": $query_due_on, \"progress\": $query_progress, \"description\": $query_description }"
     exit 0
 fi
 
@@ -40,8 +39,8 @@ edit(){
 
 testNumber "milestone" $1
 milestone=`jqChoose "$list_milestones" ". | map(select(.number == $1)) | .[0]"`
+echo "$milestone" | jq '. | { title, description, due_on, number }'
 
-echo "`jqChoose "$milestone" '.title'`"
 [[ "edit" = "$cmd" ]] && edit "Edit milestone" "$milestone"
 [[ "view" != "$cmd" ]] &&  echo "Unknown argument '$cmd'. Use '--help' for help." &&  exit 1
 [[ "$*" =~ "--web" ]] \
@@ -49,4 +48,4 @@ echo "`jqChoose "$milestone" '.title'`"
     && exit "$?"
 gh issue list --milestone $1
 
-echo "\nUse \`gh issue list view #\` to view an issue info."
+echo -e "\nUse \`gh issue view #\` to view an issue info."
