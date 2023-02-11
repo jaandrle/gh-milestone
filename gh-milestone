@@ -46,4 +46,4 @@ milestone=`jqChoose "$list_milestones" ". | map(select(.number == $1)) | .[0]"`
 [[ "$*" =~ "--web" ]] \
     && exo-open --launch WebBrowser "`jqChoose "$milestone" '.html_url'`?fullscreen=true" 2> /dev/null \
     && exit "$?"
-gh issue list --milestone $milestone
+gh issue list --milestone $1
