@@ -49,4 +49,4 @@ echo "`jqChoose "$milestone" '.title'`"
     && exit "$?"
 gh issue list --milestone $1
 
-echo "\nUse `gh issue list view #` to view an issue info."
+echo "\nUse \`gh issue list view #\` to view an issue info."
